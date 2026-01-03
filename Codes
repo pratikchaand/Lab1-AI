@@ -1,0 +1,105 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, classification_report
+
+# Data Retrieval and collection
+df = pd.read_csv('heartdisease.csv')
+df.head()
+
+df.shape, df.columns
+
+df['Heart Disease'] = df['Heart Disease'].map({'Presence': 1, 'Absence': 0})
+y = df['Heart Disease']
+
+
+# Data cleaning
+df.isnull().sum()
+
+# Remove invalid cholesterol values
+df = df[df['Cholesterol'] > 0]
+
+df['Heart Disease'].unique()
+
+
+# Single feature logistic regression
+X1 = df[['Cholesterol']]
+y = df['Heart Disease']
+
+X1_train, X1_test, y_train, y_test = train_test_split(
+    X1, y, test_size=0.2, random_state=42
+)
+
+model1 = LogisticRegression()
+model1.fit(X1_train, y_train)
+
+
+# Model training
+y1_pred = model1.predict(X1_test)
+
+print('Accuracy:', accuracy_score(y_test, y1_pred))
+print('Precision:', precision_score(y_test, y1_pred))
+print('Recall:', recall_score(y_test, y1_pred))
+print('F1 Score:', f1_score(y_test, y1_pred))
+
+print('\nConfusion Matrix:\n', confusion_matrix(y_test, y1_pred))
+print('\nClassification Report:\n', classification_report(y_test, y1_pred))
+
+
+# Sigmoid curve
+X_range = np.linspace(df['Cholesterol'].min(), df['Cholesterol'].max(), 300).reshape(-1,1)
+probs = model1.predict_proba(X_range)[:,1]
+
+plt.figure(figsize=(7,5))
+plt.scatter(df['Cholesterol'], df['Heart Disease'], alpha=0.3)
+plt.plot(X_range, probs)
+plt.xlabel('Cholesterol')
+plt.ylabel('Probability of Heart Disease')
+plt.title('Sigmoid Curve (Task 1)')
+plt.show()
+
+
+# TASK 2 multi feature logistic regression
+X2 = df.drop('Heart Disease', axis=1)
+y = df['Heart Disease']
+
+cat_cols = ['Sex', 'Chest pain type', 'Max HR', 'Exercise angina', 'Slope of ST']
+for col in cat_cols:
+    X2[col] = X2[col].astype(str)
+
+num_cols = [c for c in X2.columns if c not in cat_cols]
+
+preprocess = ColumnTransformer(
+    transformers=[
+        ('num', StandardScaler(), num_cols),
+        ('cat', OneHotEncoder(drop='first', handle_unknown='ignore'), cat_cols)
+    ]
+)
+
+X2_train, X2_test, y2_train, y2_test = train_test_split(
+    X2, y, test_size=0.2, random_state=42
+)
+
+model2 = Pipeline(steps=[
+    ('preprocess', preprocess),
+    ('classifier', LogisticRegression(max_iter=1000))
+])
+
+model2.fit(X2_train, y2_train)
+
+y2_pred = model2.predict(X2_test)
+
+print('Accuracy:', accuracy_score(y2_test, y2_pred))
+print('Precision:', precision_score(y2_test, y2_pred))
+print('Recall:', recall_score(y2_test, y2_pred))
+print('F1 Score:', f1_score(y2_test, y2_pred))
+
+print('\nConfusion Matrix:\n', confusion_matrix(y2_test, y2_pred))
+print('\nClassification Report:\n', classification_report(y2_test, y2_pred))
+
